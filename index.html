@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Hatırlat">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0f1115">
+<title>Hatırlatıcı</title>
+<style>
+:root{--bg:#0f1115;--card:#1b1e25;--line:#2a2e38;--tx:#f2f3f5;--mut:#8b91a0;--ac:#ff9f1c;--red:#ff5a4f}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--tx);font-family:-apple-system,"SF Pro Text",system-ui,sans-serif}
+body{padding:env(safe-area-inset-top) 16px calc(env(safe-area-inset-bottom) + 90px)}
+header{display:flex;justify-content:space-between;align-items:center;padding:18px 0 6px}
+h1{font-size:34px;margin:0;font-weight:700;letter-spacing:-.5px}
+.plus{width:44px;height:44px;border-radius:50%;border:0;background:var(--ac);color:#111;font-size:30px;line-height:1}
+.note{font-size:13px;color:var(--mut);background:var(--card);border-radius:12px;padding:10px 12px;margin:10px 0 4px;line-height:1.45}
+.note button{background:none;border:0;color:var(--ac);font-size:13px;padding:0;margin-left:4px}
+h2{font-size:15px;color:var(--mut);font-weight:600;margin:22px 4px 8px}
+.row{display:flex;align-items:center;gap:12px;background:var(--card);border-radius:16px;padding:14px 16px;margin-bottom:8px}
+.row.off .t,.row.off .n{color:var(--mut)}
+.info{flex:1;min-width:0}
+.t{font-size:40px;font-weight:300;letter-spacing:-1px;font-variant-numeric:tabular-nums;line-height:1.05}
+.n{font-size:15px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.d{font-size:13px;color:var(--mut);margin-top:2px}
+.sw{position:relative;width:51px;height:31px;flex:none}
+.sw input{display:none}
+.sw span{position:absolute;inset:0;background:#3a3f4b;border-radius:16px;transition:.2s}
+.sw span:after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;transition:.2s}
+.sw input:checked+span{background:var(--ac)}
+.sw input:checked+span:after{transform:translateX(20px)}
+.empty{color:var(--mut);text-align:center;padding:50px 20px;line-height:1.6}
+.sheet{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:flex-end;z-index:5}
+.sheet.on{display:flex}
+.panel{width:100%;background:#16181e;border-radius:22px 22px 0 0;padding:18px 16px calc(env(safe-area-inset-bottom) + 18px);max-height:92vh;overflow:auto}
+.panel h3{margin:0 0 14px;font-size:18px;text-align:center}
+label{display:block;font-size:13px;color:var(--mut);margin:12px 4px 6px}
+input[type=text],input[type=datetime-local],select{width:100%;background:var(--card);color:var(--tx);border:1px solid var(--line);border-radius:12px;padding:13px;font-size:17px;font-family:inherit;appearance:none;-webkit-appearance:none;min-height:50px}
+.btns{display:flex;gap:10px;margin-top:18px}
+.btn{flex:1;padding:14px;border-radius:12px;border:0;font-size:17px;font-weight:600;background:var(--card);color:var(--tx)}
+.btn.pri{background:var(--ac);color:#111}
+.btn.del{color:var(--red)}
+.cal{width:100%;margin-top:10px}
+.ring{position:fixed;inset:0;background:#0f1115;z-index:9;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px}
+.ring.on{display:flex;animation:p 1s infinite}
+@keyframes p{50%{background:#2a1b05}}
+.ring .t{font-size:84px}
+.ring .n{font-size:26px;margin:14px 0 40px;white-space:normal}
+.ring .btn{width:100%;max-width:340px;flex:none;margin-bottom:12px;padding:18px}
+</style>
+</head>
+<body>
+<header><h1>Hatırlatıcı</h1><button class="plus" id="add" aria-label="Yeni hatırlatma">+</button></header>
+<div class="note" id="note">Alarmın çalması için uygulama açık, ekran uyanık olmalı. Kapalıyken de uyarı almak için bir hatırlatmayı <b>Takvime ekle</b>.<button id="snd">Sesi aç</button></div>
+<div id="list"></div>
+
+<div class="sheet" id="sheet"><div class="panel">
+<h3 id="sh">Yeni hatırlatma</h3>
+<label>Ne hatırlatılsın?</label><input type="text" id="f-t" placeholder="Örn. Yayınevine ödeme yap">
+<label>Tarih ve saat</label><input type="datetime-local" id="f-d">
+<label>Tekrar</label>
+<select id="f-r"><option value="">Tekrarlama</option><option value="daily">Her gün</option><option value="weekly">Her hafta</option><option value="monthly">Her ay</option><option value="yearly">Her yıl</option></select>
+<button class="btn cal" id="f-c">Takvime ekle (kapalıyken de çalar)</button>
+<div class="btns"><button class="btn" id="f-x">Vazgeç</button><button class="btn del" id="f-del">Sil</button><button class="btn pri" id="f-s">Kaydet</button></div>
+</div></div>
+
+<div class="ring" id="ring"><div class="t" id="r-t"></div><div class="n" id="r-n"></div>
+<button class="btn" id="r-z">10 dk ertele</button><button class="btn pri" id="r-k">Kapat</button></div>
+
+<script>
+const $=s=>document.querySelector(s);
+let items=[];try{items=JSON.parse(localStorage.getItem("hat")||"[]")}catch(e){}
+const save=()=>{try{localStorage.setItem("hat",JSON.stringify(items))}catch(e){}};
+const p2=n=>String(n).padStart(2,"0");
+const loc=d=>`${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}T${p2(d.getHours())}:${p2(d.getMinutes())}`;
+const due=i=>i.sn?new Date(i.sn):new Date(i.dt);
+const RN={daily:"Her gün",weekly:"Her hafta",monthly:"Her ay",yearly:"Her yıl"};
+function adv(d,r){d=new Date(d);do{if(r=="daily")d.setDate(d.getDate()+1);else if(r=="weekly")d.setDate(d.getDate()+7);else if(r=="monthly")d.setMonth(d.getMonth()+1);else d.setFullYear(d.getFullYear()+1)}while(d<=new Date());return d}
+function rel(d){const a=new Date();a.setHours(0,0,0,0);const b=new Date(d);b.setHours(0,0,0,0);const n=Math.round((b-a)/864e5);
+ if(n==0)return"Bugün";if(n==1)return"Yarın";if(n==-1)return"Dün";
+ const s=d.toLocaleDateString("tr-TR",{weekday:"long",day:"numeric",month:"long",year:d.getFullYear()!=new Date().getFullYear()?"numeric":undefined});
+ return n>1&&n<60?s+" · "+n+" gün sonra":s}
+function esc(s){const d=document.createElement("div");d.textContent=s;return d.innerHTML}
+
+function render(){
+ const L=$("#list");
+ const on=items.filter(i=>i.on).sort((a,b)=>due(a)-due(b)),off=items.filter(i=>!i.on).sort((a,b)=>new Date(b.dt)-new Date(a.dt));
+ if(!items.length){L.innerHTML='<div class="empty">Henüz hatırlatma yok.<br>Sağ üstteki + ile ekle; ileri bir tarih de seçebilirsin.</div>';return}
+ const row=i=>{const d=new Date(i.dt);return `<div class="row ${i.on?"":"off"}" data-id="${i.id}"><div class="info"><div class="t">${p2(d.getHours())}:${p2(d.getMinutes())}</div><div class="n">${esc(i.title||"Hatırlatma")}</div><div class="d">${rel(d)}${i.rep?" · "+RN[i.rep]:""}</div></div><label class="sw" onclick="event.stopPropagation()"><input type="checkbox" data-sw="${i.id}" ${i.on?"checked":""}><span></span></label></div>`};
+ L.innerHTML=(on.length?"<h2>Yaklaşan</h2>"+on.map(row).join(""):"")+(off.length?"<h2>Kapalı / geçmiş</h2>"+off.map(row).join(""):"");
+}
+$("#list").addEventListener("click",e=>{
+ const s=e.target.closest("[data-sw]");
+ if(s){const i=items.find(x=>x.id==s.dataset.sw);i.on=s.checked;if(i.on){i.sn=0;if(new Date(i.dt)<=new Date()){if(i.rep)i.dt=loc(adv(i.dt,i.rep));else{i.on=false;alert("Bu tarih geçmişte. Düzenleyip yeni tarih seç.")}}}save();render();return}
+ const r=e.target.closest(".row");if(r)openSheet(r.dataset.id)});
+
+/* düzenleme */
+let cur=null;
+function openSheet(id){
+ cur=id?items.find(x=>x.id==id):null;
+ $("#sh").textContent=cur?"Düzenle":"Yeni hatırlatma";
+ const d=new Date();d.setHours(d.getHours()+1,0,0,0);
+ $("#f-t").value=cur?cur.title:"";$("#f-d").value=cur?cur.dt:loc(d);$("#f-r").value=cur?cur.rep||"":"";
+ $("#f-del").style.display=cur?"":"none";$("#f-c").style.display="";
+ $("#sheet").classList.add("on");
+}
+const closeSheet=()=>$("#sheet").classList.remove("on");
+function readForm(){const dt=$("#f-d").value;if(!dt){alert("Tarih ve saat seç.");return null}return{title:$("#f-t").value.trim()||"Hatırlatma",dt,rep:$("#f-r").value}}
+$("#add").onclick=()=>{unlock();openSheet(null)};
+$("#f-x").onclick=closeSheet;
+$("#f-s").onclick=()=>{const v=readForm();if(!v)return;
+ if(cur)Object.assign(cur,v,{on:true,sn:0});else items.push({id:Date.now(),on:true,sn:0,...v});
+ save();render();closeSheet();notifPerm()};
+$("#f-del").onclick=()=>{if(confirm("Bu hatırlatma silinsin mi?")){items=items.filter(x=>x!==cur);save();render();closeSheet()}};
+$("#f-c").onclick=()=>{const v=readForm();if(v)ics(v,cur?cur.id:Date.now())};
+
+/* takvim (.ics) */
+function ics(v,id){
+ const r={daily:"DAILY",weekly:"WEEKLY",monthly:"MONTHLY",yearly:"YEARLY"}[v.rep];
+ const t=v.title.replace(/[,;\\]/g,m=>"\\"+m);
+ const L=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Hatirlatici//TR","BEGIN:VEVENT","UID:"+id+"@hatirlatici","DTSTAMP:"+new Date().toISOString().replace(/[-:]|\.\d+/g,""),
+ "DTSTART:"+v.dt.replace(/[-:]/g,"")+"00","DURATION:PT15M","SUMMARY:"+t];
+ if(r)L.push("RRULE:FREQ="+r);
+ L.push("BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:"+t,"TRIGGER:PT0S","END:VALARM","END:VEVENT","END:VCALENDAR");
+ const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([L.join("\r\n")],{type:"text/calendar"}));a.download="hatirlatma.ics";document.body.appendChild(a);a.click();a.remove();
+}
+
+/* alarm */
+let ringing=null,ctx=null,beepT=null,wl=null;
+function unlock(){try{ctx=ctx||new(window.AudioContext||window.webkitAudioContext)();if(ctx.state=="suspended")ctx.resume()}catch(e){}
+ try{if(navigator.wakeLock&&!wl)navigator.wakeLock.request("screen").then(l=>{wl=l;l.addEventListener("release",()=>wl=null)}).catch(()=>{})}catch(e){}}
+$("#snd").onclick=()=>{unlock();beep();$("#snd").textContent="Açık"};
+document.addEventListener("visibilitychange",()=>{if(!document.hidden){wl=null;unlock();tick()}});
+function beep(){if(!ctx)return;[0,.25,.5].forEach(o=>{const s=ctx.createOscillator(),g=ctx.createGain();s.type="square";s.frequency.value=988;s.connect(g);g.connect(ctx.destination);const t=ctx.currentTime+o;g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.35,t+.02);g.gain.exponentialRampToValueAtTime(.0001,t+.18);s.start(t);s.stop(t+.2)})}
+function ring(i){
+ ringing=i;const d=new Date(i.dt);
+ $("#r-t").textContent=p2(d.getHours())+":"+p2(d.getMinutes());$("#r-n").textContent=i.title;$("#ring").classList.add("on");
+ const go=()=>{beep();try{navigator.vibrate&&navigator.vibrate([300,150,300])}catch(e){}};go();beepT=setInterval(go,1500);
+ try{if(window.Notification&&Notification.permission=="granted")new Notification(i.title,{body:"Hatırlatma zamanı"})}catch(e){}
+}
+function stopRing(){clearInterval(beepT);$("#ring").classList.remove("on");ringing=null}
+$("#r-k").onclick=()=>{const i=ringing;stopRing();i.sn=0;if(i.rep)i.dt=loc(adv(i.dt,i.rep));else i.on=false;save();render()};
+$("#r-z").onclick=()=>{const i=ringing;stopRing();i.sn=Date.now()+600000;save();render()};
+function tick(){if(ringing)return;const n=new Date();const i=items.find(x=>x.on&&due(x)<=n);if(i)ring(i)}
+function notifPerm(){try{if(window.Notification&&Notification.permission=="default")Notification.requestPermission()}catch(e){}}
+setInterval(tick,1000);
+render();tick();
+</script>
+</body>
+</html>
